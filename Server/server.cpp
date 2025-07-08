@@ -1,7 +1,15 @@
+#define NOMINMAX
+
 #include <iostream>
 #include <WinSock2.h>
 
+#include "Common.h"
+#include "UserEvents_generated.h"
+
+
+
 #pragma comment(lib, "ws2_32")
+int ProcessPacket(SOCKET ClientSocket, const char* Buffer);
 
 int main()
 {
@@ -45,7 +53,17 @@ int main()
 					}
 					else
 					{
-						//recv
+						char Buffer[4096] = { 0, };
+						int RecvBytes = RecvPacket(ReadSockets.fd_array[i], Buffer);
+						if (RecvBytes <= 0)
+						{
+							closesocket(ReadSockets.fd_array[i]);
+							FD_CLR(ReadSockets.fd_array[i], &ReadSockets);
+						}
+						else
+						{
+							//ProcessPacket();
+						}
 					}
 				}
 			}
@@ -58,5 +76,11 @@ int main()
 
 	WSACleanup();
 
+	return 0;
+}
+
+
+int ProcessPacket(SOCKET ClientSocket, const char* Buffer)
+{
 	return 0;
 }

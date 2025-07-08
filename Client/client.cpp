@@ -1,10 +1,16 @@
+#define NOMINMAX
+
 #include <iostream>
 #include <WS2tcpip.h>
 #include <WinSock2.h>
 #include <Windows.h>
 #include <process.h>
+#include "Common.h"
+#include "UserEvents_generated.h"
 
 #pragma comment(lib, "ws2_32")
+
+int ProcessPacket(SOCKET ServerSocket, const char* Buffer);
 
 unsigned RecvThread(void* Arg)
 {
@@ -55,5 +61,10 @@ int main()
 
 	WSACleanup();
 
+	return 0;
+}
+
+int ProcessPacket(SOCKET ServerSocket, const char* Buffer)
+{
 	return 0;
 }

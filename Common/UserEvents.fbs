@@ -1,0 +1,86 @@
+namespace UserEvents;
+
+struct Color {
+	r: uint8;
+	g: uint8;
+	b: uint8;
+}
+
+enum ChatType : byte {
+  All = 0,
+  Team = 1,
+  Private = 2,
+  System = 3
+}
+
+table C2S_Login {
+	userid: string;
+	password: string;
+}
+
+table S2C_Login {
+	player_id: uint32;
+	success: bool;
+	message: string;
+	position_x: uint16;
+	position_y: uint16;
+	color: Color;
+}
+
+table C2S_PlayerMoveData {
+	player_id: uint32;
+	position_x: uint16;
+	position_y: uint16;
+	key_code: uint8;
+}
+
+table S2C_PlayerMoveData {
+	player_id: uint32;
+	position_x: uint16;
+	position_y: uint16;
+}
+
+table C2S_Logout {
+	player_id: uint32;
+}
+
+table S2C_Logout {
+	player_id: uint32;
+	success: bool;
+	message: string;
+}
+
+table C2S_PlayerChat {
+  player_id:uint32;
+  userid:string;
+  message:string;
+  chat_type:ChatType;
+}
+
+table S2C_PlayerChat {
+  player_id:uint32;
+  userid:string;
+  message:string;
+  chat_type:ChatType;
+}
+
+
+union EventType {
+	C2S_Login,
+	S2C_Login,
+	C2S_PlayerMoveData,
+	S2C_PlayerMoveData,
+	C2S_Logout,
+	S2C_Logout,
+	C2S_PlayerChat,
+	S2C_PlayerChat
+}
+
+
+
+table EventData {
+	timestamp: uint64;
+	data: EventType;
+}
+
+root_type EventData;
