@@ -1,8 +1,18 @@
 #define NOMINMAX
 
 #include <iostream>
-#include <WS2tcpip.h>
-#include <WinSock2.h>
+#ifdef _WIN32
+	#include <WS2tcpip.h>
+	#include <WinSock2.h>
+	#pragma comment(lib, "ws2_32")
+#else //linux
+	#include <unistd.h>
+	#include <arpa/inet.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <pthread.h>
+	#define closesocket(A)		close(A)
+#endif
 //#include <Windows.h>
 //#include <process.h>
 #include <conio.h>
@@ -11,9 +21,8 @@
 #include "Common.h"
 #include "UserEvents_generated.h"
 
-#pragma comment(lib, "ws2_32")
 
-CRITICAL_SECTION SessionCS;
+//CRITICAL_SECTION SessionCS;
 
 std::mutex SessionMutex;
 
@@ -91,8 +100,10 @@ int main()
 {
 	//InitializeCriticalSection(&SessionCS);
 
+#ifdef _WIN32
 	WSAData wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
 
 	SOCKET ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -126,8 +137,9 @@ int main()
 
 	closesocket(ServerSocket);
 
-
+#ifdef _WIN32
 	WSACleanup();
+#endif
 
 	//DeleteCriticalSection(&SessionCS);
 
@@ -163,10 +175,13 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 			auto PlyerMoveData = RecvEventData->data_as_S2C_PlayerMoveData();
 			if (PlyerMoveData)
 			{
-				EnterCriticalSection(&SessionCS);
+				//EnterCriticalSection(&SessionCS);
+				SessionMutex.lock();
 				SessionList[PlyerMoveData->player_id()].X = PlyerMoveData->position_x();
 				SessionList[PlyerMoveData->player_id()].Y = PlyerMoveData->position_y();
-				LeaveCriticalSection(&SessionCS);
+				//LeaveCriticalSection(&SessionCS);
+				SessionMutex.unlock();
+
 			}
 			else
 			{
@@ -182,19 +197,23 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 		{
 			auto LoginData = RecvEventData->data_as_S2C_SpawnPlayer();
 
-			EnterCriticalSection(&SessionCS);
+			//EnterCriticalSection(&SessionCS);
+			SessionMutex.lock();
 			SessionList[LoginData->player_id()] = Session(LoginData->player_id(),
 				LoginData->position_x(), LoginData->position_y(),
 				LoginData->message()->c_str(), *LoginData->color());
-			LeaveCriticalSection(&SessionCS);
+			//LeaveCriticalSection(&SessionCS);
+			SessionMutex.unlock();
 		}
 		break;
 		case UserEvents::EventType_S2C_DestroyPlayer:
 		{
 			auto DestroyPlayerData = RecvEventData->data_as_S2C_DestroyPlayer();
-			EnterCriticalSection(&SessionCS);
+			//EnterCriticalSection(&SessionCS);
+			SessionMutex.lock();
 			SessionList.erase(DestroyPlayerData->player_id());
-			LeaveCriticalSection(&SessionCS);
+			//LeaveCriticalSection(&SessionCS);
+			SessionMutex.unlock();
 		}
 		break;
 	}
