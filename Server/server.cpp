@@ -80,7 +80,95 @@ int main()
 }
 
 
-int ProcessPacket(SOCKET ClientSocket, const char* Buffer)
+
+int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 {
+	//root_type
+	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
+	std::cout << RecvEventData->timestamp() << std::endl; //Å¸ÀÓ½ºÅÆÇÁ
+
+	flatbuffers::FlatBufferBuilder SendBuilder;
+
+	switch (RecvEventData->data_type())
+	{
+	case UserEvents::EventType_C2S_Login:
+	{
+		auto LoginData = RecvEventData->data_as_C2S_Login();
+		if (LoginData->userid() && LoginData->password())
+		{
+			std::cout << "Login Request success: " << LoginData->userid()->c_str() << ", " << LoginData->password()->c_str() << std::endl;
+			auto LoginEvent = UserEvents::CreateS2C_Login(SendBuilder, (uint32_t)ClientSocket, true, SendBuilder.CreateString("Login Success"), 10, 10, nullptr);
+			auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_Login, LoginEvent.Union());
+			SendBuilder.Finish(EventData);
+		}
+		else
+		{
+			auto LoginEvent = UserEvents::CreateS2C_Login(SendBuilder, (uint32_t)ClientSocket, false, SendBuilder.CreateString("empty id, password"), 10, 10, nullptr);
+			auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_Login, LoginEvent.Union());
+			SendBuilder.Finish(EventData);
+		}
+		SendPacket(ClientSocket, SendBuilder);
+	}
+	break;
+	case UserEvents::EventType_C2S_PlayerMoveData:
+	{
+		std::cout << "EventType_C2S_PlayerMoveData" << std::endl;
+		auto PlayerMoveData = RecvEventData->data_as_C2S_PlayerMoveData();
+		int PlayerX = PlayerMoveData->position_x();
+		int PlayerY = PlayerMoveData->position_y();
+		if (PlayerMoveData->key_code() != 0)
+		{
+			switch (toupper(PlayerMoveData->key_code()))
+			{
+				case 'W':
+				{
+					PlayerY--;
+					break;
+				}
+				case 'S':
+				{
+					PlayerY++;
+					break;
+				}
+				case 'A':
+				{
+					PlayerX--;
+					break;
+				}
+				case 'D':
+				{
+					PlayerX++;
+					break;
+				}
+				case 27:
+				{
+					auto LogoutEvent = UserEvents::CreateS2C_Logout(SendBuilder, (uint32_t)ClientSocket);
+					auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_Logout, LogoutEvent.Union());
+					SendBuilder.Finish(EventData);
+					SendPacket(ClientSocket, SendBuilder);
+					break;
+				}
+			}
+
+			PlayerX = std::clamp(PlayerX, 0, 100);
+			PlayerY = std::clamp(PlayerY, 0, 100);
+		}
+
+		GotoXY(PlayerX, PlayerY);
+		std::cout << "P" << std::endl;
+
+		auto SendPlayerMoveData = UserEvents::CreateS2C_PlayerMoveData(SendBuilder, (uint32_t)ClientSocket, PlayerX, PlayerY);
+		auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_PlayerMoveData, SendPlayerMoveData.Union());
+		SendBuilder.Finish(EventData);
+	}
+	break;
+	case UserEvents::EventType_C2S_Logout:
+	{
+		auto LoginData = RecvEventData->data_as_S2C_Logout();
+		return -1;
+	}
+	break;
+	}
+
 	return 0;
 }

@@ -5,6 +5,7 @@
 #include <WinSock2.h>
 #include <Windows.h>
 #include <process.h>
+#include <conio.h>
 #include "Common.h"
 #include "UserEvents_generated.h"
 
@@ -18,7 +19,15 @@ unsigned RecvThread(void* Arg)
 
 	while (true)
 	{
-		//recv()
+		char Buffer[4096];
+		int RecvBytes = RecvPacket(ServerSocket, Buffer);
+		if (RecvBytes <= 0)
+		{
+			shutdown(ServerSocket, SD_BOTH);
+			closesocket(ServerSocket);
+			break;
+		}
+		ProcessPacket(ServerSocket, Buffer);
 	}
 
 	return 0;
@@ -30,7 +39,13 @@ unsigned SendThread(void* Arg)
 
 	while (true)
 	{
-		//send();
+		if (!_kbhit())
+		{
+			int KeyCode = _getch();
+			//SendPacket()
+
+			//auto PlayerMoveData = UserEvents::CreateC2S_PlayerMoveData(SendBuilder, PlyerMoveData->position_x(), PlyerMoveData->position_y(), keyCode);
+		}
 	}
 
 	return 0;
@@ -64,7 +79,50 @@ int main()
 	return 0;
 }
 
-int ProcessPacket(SOCKET ServerSocket, const char* Buffer)
+int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 {
+	flatbuffers::FlatBufferBuilder SendBuilder;
+	//root_type
+	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
+	std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
+
+	switch (RecvEventData->data_type())
+	{
+		case UserEvents::EventType_S2C_Login:
+		{
+			auto LoginData = RecvEventData->data_as_S2C_Login();
+			if (LoginData)
+			{
+				std::cout << "로그인 성공: " << LoginData->success() << std::endl;
+				std::cout << "유저 ID: " << LoginData->player_id() << std::endl;
+			}
+			else
+			{
+				std::cout << "로그인 데이터가 유효하지 않습니다." << std::endl;
+			}
+		}
+		break;
+		case UserEvents::EventType_S2C_PlayerMoveData:
+		{
+			std::cout << "EventType_S2C_PlayerMoveData" << std::endl;
+			auto PlyerMoveData = RecvEventData->data_as_S2C_PlayerMoveData();
+			if (PlyerMoveData)
+			{
+				GotoXY(PlyerMoveData->position_x(), PlyerMoveData->position_y());
+				std::cout << "P" << std::endl;
+			}
+			else
+			{
+				std::cout << "플레이어 이동 데이터가 유효하지 않습니다." << std::endl;
+			}
+		}
+		break;
+		case UserEvents::EventType_S2C_Logout:
+		{
+			return -1;
+		}
+		break;
+	}
+
 	return 0;
 }
