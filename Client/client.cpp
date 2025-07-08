@@ -6,6 +6,8 @@
 #include <Windows.h>
 #include <process.h>
 #include <conio.h>
+#include <thread>
+#include <mutex>
 #include "Common.h"
 #include "UserEvents_generated.h"
 
@@ -13,13 +15,17 @@
 
 CRITICAL_SECTION SessionCS;
 
+std::mutex SessionMutex;
+
+
 int ProcessPacket(SOCKET ServerSocket, const char* Buffer);
 
 uint32_t PlayerID = 0;
 
-unsigned RecvThread(void* Arg)
+//unsigned RecvThread(void* Arg)
+void RecvThread(SOCKET ServerSocket)
 {
-	SOCKET ServerSocket = *(SOCKET*)Arg;
+	//SOCKET ServerSocket = *(SOCKET*)Arg;
 
 	while (true)
 	{
@@ -34,12 +40,13 @@ unsigned RecvThread(void* Arg)
 		ProcessPacket(ServerSocket, Buffer);
 	}
 
-	return 0;
+	//return 0;
 }
 
-unsigned SendThread(void* Arg)
+//unsigned SendThread(void* Arg)
+void SendThread(SOCKET ServerSocket)
 {
-	SOCKET ServerSocket = *(SOCKET*)Arg;
+	//SOCKET ServerSocket = *(SOCKET*)Arg;
 
 	while (true)
 	{
@@ -57,18 +64,27 @@ unsigned SendThread(void* Arg)
 		}
 		else
 		{
-			EnterCriticalSection(&SessionCS);
+			//EnterCriticalSection(&SessionCS);
+			////draw
+			//for (const auto& SelectecSession : SessionList)
+			//{
+			//	GotoXY(SelectecSession.second.X, SelectecSession.second.Y);
+			//	std::cout << SelectecSession.second.PlayerSocket;
+			//}
+			//LeaveCriticalSection(&SessionCS);
+
+			SessionMutex.lock();
 			//draw
 			for (const auto& SelectecSession : SessionList)
 			{
 				GotoXY(SelectecSession.second.X, SelectecSession.second.Y);
 				std::cout << SelectecSession.second.PlayerSocket;
 			}
-			LeaveCriticalSection(&SessionCS);
+			SessionMutex.unlock();
 		}
 	}
 
-	return 0;
+	//return 0;
 }
 
 int main()
@@ -96,11 +112,17 @@ int main()
 
 	SendPacket(ServerSocket, SendBuilder);
 
-	HANDLE ThreadHandles[2] = { 0, };
-	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, (void*)&ServerSocket, 0, 0);
-	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, (void*)&ServerSocket, 0, 0);
+	//HANDLE ThreadHandles[2] = { 0, };
+	//ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, (void*)&ServerSocket, 0, 0);
+	//ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, (void*)&ServerSocket, 0, 0);
 
-	WaitForMultipleObjects(2, ThreadHandles, true, INFINITE);
+	//WaitForMultipleObjects(2, ThreadHandles, true, INFINITE);
+
+	std::thread STLRecvThread(RecvThread, ServerSocket);
+	std::thread STLSendThread(SendThread, ServerSocket);
+
+	STLRecvThread.join();
+	STLSendThread.join();
 
 	closesocket(ServerSocket);
 

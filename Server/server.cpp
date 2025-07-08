@@ -33,6 +33,7 @@ int main()
 	FD_ZERO(&ReadSockets);
 	FD_SET(ListenSocket, &ReadSockets);
 
+
 	while (true)
 	{
 		ReadSocketCopy = ReadSockets;
