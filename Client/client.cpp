@@ -3,8 +3,8 @@
 #include <iostream>
 #include <WS2tcpip.h>
 #include <WinSock2.h>
-#include <Windows.h>
-#include <process.h>
+//#include <Windows.h>
+//#include <process.h>
 #include <conio.h>
 #include <thread>
 #include <mutex>
@@ -89,7 +89,7 @@ void SendThread(SOCKET ServerSocket)
 
 int main()
 {
-	InitializeCriticalSection(&SessionCS);
+	//InitializeCriticalSection(&SessionCS);
 
 	WSAData wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -129,7 +129,7 @@ int main()
 
 	WSACleanup();
 
-	DeleteCriticalSection(&SessionCS);
+	//DeleteCriticalSection(&SessionCS);
 
 	return 0;
 }
