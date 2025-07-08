@@ -55,7 +55,7 @@ unsigned SendThread(void* Arg)
 			for (const auto& SelectecSession : SessionList)
 			{
 				GotoXY(SelectecSession.second.X, SelectecSession.second.Y);
-				std::cout << SelectecSession.second.Userid;
+				std::cout << SelectecSession.second.PlayerSocket;
 			}
 			LeaveCriticalSection(&SessionCS);
 		}

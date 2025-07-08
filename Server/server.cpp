@@ -116,7 +116,10 @@ int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 				auto SpawnEvent = UserEvents::CreateS2C_SpawnPlayer(SendBuilder, (uint32_t)One.PlayerSocket, true, SendBuilder.CreateString(One.Userid.c_str()), One.X, One.Y, &One.Color);
 				auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_SpawnPlayer, SpawnEvent.Union());
 				SendBuilder.Finish(EventData);
-				SendPacket(ClientSocket, SendBuilder);
+				for (const auto& Receiver : SessionList)
+				{
+					SendPacket(Receiver.second.PlayerSocket, SendBuilder);
+				}
 			}
 		}
 		else
