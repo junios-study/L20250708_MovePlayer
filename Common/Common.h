@@ -4,6 +4,32 @@
 
 #include <Windows.h>
 #include "flatbuffers/flatbuffers.h"
+#include "UserEvents_generated.h"
+#include <map>
+#include <string>
+
+class Session
+{
+public:
+	Session() {}
+	Session(SOCKET InPlayerSocket, int InX, int InY, std::string InUserid, UserEvents::Color InColor)
+	{
+		PlayerSocket = InPlayerSocket;
+		X = InX;
+		Y = InY;
+		Userid = InUserid;
+		Color = InColor;
+	}
+
+	SOCKET PlayerSocket;
+	std::string Userid;
+	int X;
+	int Y;
+	UserEvents::Color Color;
+};
+
+std::map<SOCKET, Session> SessionList;
+
 
 int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
 int RecvPacket(SOCKET Socket, char* Buffer);
@@ -18,11 +44,11 @@ uint64_t GetTimeStamp()
 int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
 {
 	int PacketSize = (int)Builder.GetSize();
-	PacketSize = ::htonl(PacketSize);
+	PacketSize = htonl(PacketSize);
 	//header, 길이
-	int SentBytes = ::send(Socket, (char*)&PacketSize, sizeof(PacketSize), 0);
+	int SentBytes = send(Socket, (char*)&PacketSize, sizeof(PacketSize), 0);
 	//자료 
-	SentBytes = ::send(Socket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
+	SentBytes = send(Socket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
 	if (SentBytes <= 0)
 	{
 		std::cout << "Send failed: " << WSAGetLastError() << std::endl;

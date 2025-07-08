@@ -27,6 +27,19 @@ table S2C_Login {
 	color: Color;
 }
 
+table S2C_SpawnPlayer {
+	player_id: uint32;
+	success: bool;
+	message: string;
+	position_x: uint16;
+	position_y: uint16;
+	color: Color;
+}
+
+table S2C_DestroyPlayer {
+	player_id: uint32;
+}
+
 table C2S_PlayerMoveData {
 	player_id: uint32;
 	position_x: uint16;
@@ -73,7 +86,9 @@ union EventType {
 	C2S_Logout,
 	S2C_Logout,
 	C2S_PlayerChat,
-	S2C_PlayerChat
+	S2C_PlayerChat,
+	S2C_SpawnPlayer,
+	S2C_DestroyPlayer
 }
 
 

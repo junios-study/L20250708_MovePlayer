@@ -23,6 +23,12 @@ struct C2S_LoginBuilder;
 struct S2C_Login;
 struct S2C_LoginBuilder;
 
+struct S2C_SpawnPlayer;
+struct S2C_SpawnPlayerBuilder;
+
+struct S2C_DestroyPlayer;
+struct S2C_DestroyPlayerBuilder;
+
 struct C2S_PlayerMoveData;
 struct C2S_PlayerMoveDataBuilder;
 
@@ -90,11 +96,13 @@ enum EventType : uint8_t {
   EventType_S2C_Logout = 6,
   EventType_C2S_PlayerChat = 7,
   EventType_S2C_PlayerChat = 8,
+  EventType_S2C_SpawnPlayer = 9,
+  EventType_S2C_DestroyPlayer = 10,
   EventType_MIN = EventType_NONE,
-  EventType_MAX = EventType_S2C_PlayerChat
+  EventType_MAX = EventType_S2C_DestroyPlayer
 };
 
-inline const EventType (&EnumValuesEventType())[9] {
+inline const EventType (&EnumValuesEventType())[11] {
   static const EventType values[] = {
     EventType_NONE,
     EventType_C2S_Login,
@@ -104,13 +112,15 @@ inline const EventType (&EnumValuesEventType())[9] {
     EventType_C2S_Logout,
     EventType_S2C_Logout,
     EventType_C2S_PlayerChat,
-    EventType_S2C_PlayerChat
+    EventType_S2C_PlayerChat,
+    EventType_S2C_SpawnPlayer,
+    EventType_S2C_DestroyPlayer
   };
   return values;
 }
 
 inline const char * const *EnumNamesEventType() {
-  static const char * const names[10] = {
+  static const char * const names[12] = {
     "NONE",
     "C2S_Login",
     "S2C_Login",
@@ -120,13 +130,15 @@ inline const char * const *EnumNamesEventType() {
     "S2C_Logout",
     "C2S_PlayerChat",
     "S2C_PlayerChat",
+    "S2C_SpawnPlayer",
+    "S2C_DestroyPlayer",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameEventType(EventType e) {
-  if (::flatbuffers::IsOutRange(e, EventType_NONE, EventType_S2C_PlayerChat)) return "";
+  if (::flatbuffers::IsOutRange(e, EventType_NONE, EventType_S2C_DestroyPlayer)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEventType()[index];
 }
@@ -165,6 +177,14 @@ template<> struct EventTypeTraits<UserEvents::C2S_PlayerChat> {
 
 template<> struct EventTypeTraits<UserEvents::S2C_PlayerChat> {
   static const EventType enum_value = EventType_S2C_PlayerChat;
+};
+
+template<> struct EventTypeTraits<UserEvents::S2C_SpawnPlayer> {
+  static const EventType enum_value = EventType_S2C_SpawnPlayer;
+};
+
+template<> struct EventTypeTraits<UserEvents::S2C_DestroyPlayer> {
+  static const EventType enum_value = EventType_S2C_DestroyPlayer;
 };
 
 bool VerifyEventType(::flatbuffers::Verifier &verifier, const void *obj, EventType type);
@@ -373,6 +393,158 @@ inline ::flatbuffers::Offset<S2C_Login> CreateS2C_LoginDirect(
       position_x,
       position_y,
       color);
+}
+
+struct S2C_SpawnPlayer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef S2C_SpawnPlayerBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PLAYER_ID = 4,
+    VT_SUCCESS = 6,
+    VT_MESSAGE = 8,
+    VT_POSITION_X = 10,
+    VT_POSITION_Y = 12,
+    VT_COLOR = 14
+  };
+  uint32_t player_id() const {
+    return GetField<uint32_t>(VT_PLAYER_ID, 0);
+  }
+  bool success() const {
+    return GetField<uint8_t>(VT_SUCCESS, 0) != 0;
+  }
+  const ::flatbuffers::String *message() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MESSAGE);
+  }
+  uint16_t position_x() const {
+    return GetField<uint16_t>(VT_POSITION_X, 0);
+  }
+  uint16_t position_y() const {
+    return GetField<uint16_t>(VT_POSITION_Y, 0);
+  }
+  const UserEvents::Color *color() const {
+    return GetStruct<const UserEvents::Color *>(VT_COLOR);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_PLAYER_ID, 4) &&
+           VerifyField<uint8_t>(verifier, VT_SUCCESS, 1) &&
+           VerifyOffset(verifier, VT_MESSAGE) &&
+           verifier.VerifyString(message()) &&
+           VerifyField<uint16_t>(verifier, VT_POSITION_X, 2) &&
+           VerifyField<uint16_t>(verifier, VT_POSITION_Y, 2) &&
+           VerifyField<UserEvents::Color>(verifier, VT_COLOR, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct S2C_SpawnPlayerBuilder {
+  typedef S2C_SpawnPlayer Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_player_id(uint32_t player_id) {
+    fbb_.AddElement<uint32_t>(S2C_SpawnPlayer::VT_PLAYER_ID, player_id, 0);
+  }
+  void add_success(bool success) {
+    fbb_.AddElement<uint8_t>(S2C_SpawnPlayer::VT_SUCCESS, static_cast<uint8_t>(success), 0);
+  }
+  void add_message(::flatbuffers::Offset<::flatbuffers::String> message) {
+    fbb_.AddOffset(S2C_SpawnPlayer::VT_MESSAGE, message);
+  }
+  void add_position_x(uint16_t position_x) {
+    fbb_.AddElement<uint16_t>(S2C_SpawnPlayer::VT_POSITION_X, position_x, 0);
+  }
+  void add_position_y(uint16_t position_y) {
+    fbb_.AddElement<uint16_t>(S2C_SpawnPlayer::VT_POSITION_Y, position_y, 0);
+  }
+  void add_color(const UserEvents::Color *color) {
+    fbb_.AddStruct(S2C_SpawnPlayer::VT_COLOR, color);
+  }
+  explicit S2C_SpawnPlayerBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<S2C_SpawnPlayer> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<S2C_SpawnPlayer>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<S2C_SpawnPlayer> CreateS2C_SpawnPlayer(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
+    bool success = false,
+    ::flatbuffers::Offset<::flatbuffers::String> message = 0,
+    uint16_t position_x = 0,
+    uint16_t position_y = 0,
+    const UserEvents::Color *color = nullptr) {
+  S2C_SpawnPlayerBuilder builder_(_fbb);
+  builder_.add_color(color);
+  builder_.add_message(message);
+  builder_.add_player_id(player_id);
+  builder_.add_position_y(position_y);
+  builder_.add_position_x(position_x);
+  builder_.add_success(success);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<S2C_SpawnPlayer> CreateS2C_SpawnPlayerDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
+    bool success = false,
+    const char *message = nullptr,
+    uint16_t position_x = 0,
+    uint16_t position_y = 0,
+    const UserEvents::Color *color = nullptr) {
+  auto message__ = message ? _fbb.CreateString(message) : 0;
+  return UserEvents::CreateS2C_SpawnPlayer(
+      _fbb,
+      player_id,
+      success,
+      message__,
+      position_x,
+      position_y,
+      color);
+}
+
+struct S2C_DestroyPlayer FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef S2C_DestroyPlayerBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PLAYER_ID = 4
+  };
+  uint32_t player_id() const {
+    return GetField<uint32_t>(VT_PLAYER_ID, 0);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_PLAYER_ID, 4) &&
+           verifier.EndTable();
+  }
+};
+
+struct S2C_DestroyPlayerBuilder {
+  typedef S2C_DestroyPlayer Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_player_id(uint32_t player_id) {
+    fbb_.AddElement<uint32_t>(S2C_DestroyPlayer::VT_PLAYER_ID, player_id, 0);
+  }
+  explicit S2C_DestroyPlayerBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<S2C_DestroyPlayer> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<S2C_DestroyPlayer>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<S2C_DestroyPlayer> CreateS2C_DestroyPlayer(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0) {
+  S2C_DestroyPlayerBuilder builder_(_fbb);
+  builder_.add_player_id(player_id);
+  return builder_.Finish();
 }
 
 struct C2S_PlayerMoveData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
@@ -842,6 +1014,12 @@ struct EventData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const UserEvents::S2C_PlayerChat *data_as_S2C_PlayerChat() const {
     return data_type() == UserEvents::EventType_S2C_PlayerChat ? static_cast<const UserEvents::S2C_PlayerChat *>(data()) : nullptr;
   }
+  const UserEvents::S2C_SpawnPlayer *data_as_S2C_SpawnPlayer() const {
+    return data_type() == UserEvents::EventType_S2C_SpawnPlayer ? static_cast<const UserEvents::S2C_SpawnPlayer *>(data()) : nullptr;
+  }
+  const UserEvents::S2C_DestroyPlayer *data_as_S2C_DestroyPlayer() const {
+    return data_type() == UserEvents::EventType_S2C_DestroyPlayer ? static_cast<const UserEvents::S2C_DestroyPlayer *>(data()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint64_t>(verifier, VT_TIMESTAMP, 8) &&
@@ -882,6 +1060,14 @@ template<> inline const UserEvents::C2S_PlayerChat *EventData::data_as<UserEvent
 
 template<> inline const UserEvents::S2C_PlayerChat *EventData::data_as<UserEvents::S2C_PlayerChat>() const {
   return data_as_S2C_PlayerChat();
+}
+
+template<> inline const UserEvents::S2C_SpawnPlayer *EventData::data_as<UserEvents::S2C_SpawnPlayer>() const {
+  return data_as_S2C_SpawnPlayer();
+}
+
+template<> inline const UserEvents::S2C_DestroyPlayer *EventData::data_as<UserEvents::S2C_DestroyPlayer>() const {
+  return data_as_S2C_DestroyPlayer();
 }
 
 struct EventDataBuilder {
@@ -955,6 +1141,14 @@ inline bool VerifyEventType(::flatbuffers::Verifier &verifier, const void *obj, 
     }
     case EventType_S2C_PlayerChat: {
       auto ptr = reinterpret_cast<const UserEvents::S2C_PlayerChat *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case EventType_S2C_SpawnPlayer: {
+      auto ptr = reinterpret_cast<const UserEvents::S2C_SpawnPlayer *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case EventType_S2C_DestroyPlayer: {
+      auto ptr = reinterpret_cast<const UserEvents::S2C_DestroyPlayer *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return true;

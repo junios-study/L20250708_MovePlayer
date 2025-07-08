@@ -62,7 +62,7 @@ int main()
 						}
 						else
 						{
-							//ProcessPacket();
+							ProcessPacket(ReadSockets.fd_array[i], Buffer);
 						}
 					}
 				}
@@ -96,18 +96,36 @@ int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 		auto LoginData = RecvEventData->data_as_C2S_Login();
 		if (LoginData->userid() && LoginData->password())
 		{
+			UserEvents::Color color(rand()%255, rand()%255, rand()%255);
+			int X = rand() % 80;
+			int Y =	rand() % 25;
+
+			SessionList[ClientSocket] = Session(ClientSocket, X, Y, LoginData->userid()->c_str(), color);
+
 			std::cout << "Login Request success: " << LoginData->userid()->c_str() << ", " << LoginData->password()->c_str() << std::endl;
-			auto LoginEvent = UserEvents::CreateS2C_Login(SendBuilder, (uint32_t)ClientSocket, true, SendBuilder.CreateString("Login Success"), 10, 10, nullptr);
+			auto LoginEvent = UserEvents::CreateS2C_Login(SendBuilder, (uint32_t)ClientSocket, true, SendBuilder.CreateString("Login Success"), X, Y, &color);
 			auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_Login, LoginEvent.Union());
 			SendBuilder.Finish(EventData);
+			SendPacket(ClientSocket, SendBuilder);
+
+			//S2C_SpawnPlayer
+			for (const auto& SelectedSession : SessionList)
+			{
+				SendBuilder.Reset();
+				Session One = SelectedSession.second;
+				auto SpawnEvent = UserEvents::CreateS2C_SpawnPlayer(SendBuilder, (uint32_t)One.PlayerSocket, true, SendBuilder.CreateString(One.Userid.c_str()), One.X, One.Y, &One.Color);
+				auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_Login, SpawnEvent.Union());
+				SendBuilder.Finish(EventData);
+				SendPacket(ClientSocket, SendBuilder);
+			}
 		}
 		else
 		{
 			auto LoginEvent = UserEvents::CreateS2C_Login(SendBuilder, (uint32_t)ClientSocket, false, SendBuilder.CreateString("empty id, password"), 10, 10, nullptr);
 			auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_Login, LoginEvent.Union());
 			SendBuilder.Finish(EventData);
+			SendPacket(ClientSocket, SendBuilder);
 		}
-		SendPacket(ClientSocket, SendBuilder);
 	}
 	break;
 	case UserEvents::EventType_C2S_PlayerMoveData:

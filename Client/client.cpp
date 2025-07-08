@@ -11,6 +11,8 @@
 
 #pragma comment(lib, "ws2_32")
 
+CRITICAL_SECTION SessionCS;
+
 int ProcessPacket(SOCKET ServerSocket, const char* Buffer);
 
 unsigned RecvThread(void* Arg)
@@ -39,12 +41,23 @@ unsigned SendThread(void* Arg)
 
 	while (true)
 	{
-		if (!_kbhit())
+		if (_kbhit())
 		{
 			int KeyCode = _getch();
 			//SendPacket()
 
 			//auto PlayerMoveData = UserEvents::CreateC2S_PlayerMoveData(SendBuilder, PlyerMoveData->position_x(), PlyerMoveData->position_y(), keyCode);
+		}
+		else
+		{
+			EnterCriticalSection(&SessionCS);
+			//draw
+			for (const auto& SelectecSession : SessionList)
+			{
+				GotoXY(SelectecSession.second.X, SelectecSession.second.Y);
+				std::cout << SelectecSession.second.Userid;
+			}
+			LeaveCriticalSection(&SessionCS);
 		}
 	}
 
@@ -53,6 +66,8 @@ unsigned SendThread(void* Arg)
 
 int main()
 {
+	InitializeCriticalSection(&SessionCS);
+
 	WSAData wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
@@ -65,6 +80,15 @@ int main()
 	ServerSockAddr.sin_port = htons(20200);
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
+	//Login
+	flatbuffers::FlatBufferBuilder SendBuilder;
+
+	auto LoginEvent = UserEvents::CreateC2S_Login(SendBuilder, SendBuilder.CreateString("userid"), SendBuilder.CreateString("password"));
+	auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_C2S_Login, LoginEvent.Union());
+	SendBuilder.Finish(EventData);
+
+	SendPacket(ServerSocket, SendBuilder);
+
 	HANDLE ThreadHandles[2] = { 0, };
 	ThreadHandles[0] = (HANDLE)_beginthreadex(0, 0, RecvThread, (void*)&ServerSocket, 0, 0);
 	ThreadHandles[1] = (HANDLE)_beginthreadex(0, 0, SendThread, (void*)&ServerSocket, 0, 0);
@@ -75,6 +99,8 @@ int main()
 
 
 	WSACleanup();
+
+	DeleteCriticalSection(&SessionCS);
 
 	return 0;
 }
@@ -120,6 +146,16 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 		case UserEvents::EventType_S2C_Logout:
 		{
 			return -1;
+		}
+		case UserEvents::EventType_S2C_SpawnPlayer:
+		{
+			auto LoginData = RecvEventData->data_as_S2C_SpawnPlayer();
+
+			EnterCriticalSection(&SessionCS);
+			SessionList[LoginData->player_id()] = Session(LoginData->player_id(),
+				LoginData->position_x(), LoginData->position_y(),
+				LoginData->message()->c_str(), *LoginData->color());
+			LeaveCriticalSection(&SessionCS);
 		}
 		break;
 	}
