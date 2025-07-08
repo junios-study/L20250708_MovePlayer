@@ -13,6 +13,7 @@ int ProcessPacket(SOCKET ClientSocket, const char* Buffer);
 
 int main()
 {
+	srand((unsigned int)time(nullptr));
 	WSAData wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
@@ -57,8 +58,20 @@ int main()
 						int RecvBytes = RecvPacket(ReadSockets.fd_array[i], Buffer);
 						if (RecvBytes <= 0)
 						{
+							SOCKET DeleteSocket = ReadSockets.fd_array[i];
 							closesocket(ReadSockets.fd_array[i]);
 							FD_CLR(ReadSockets.fd_array[i], &ReadSockets);
+							SessionList.erase(DeleteSocket);
+
+							flatbuffers::FlatBufferBuilder SendBuilder;
+							auto DestroyPlayer = UserEvents::CreateS2C_DestroyPlayer(SendBuilder, DeleteSocket);
+							auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_DestroyPlayer, DestroyPlayer.Union());
+							SendBuilder.Finish(EventData);
+
+							for (const auto& Receiver : SessionList)
+							{
+								SendPacket(Receiver.second.PlayerSocket, SendBuilder);
+							}
 						}
 						else
 						{
@@ -85,7 +98,7 @@ int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 {
 	//root_type
 	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
-	std::cout << RecvEventData->timestamp() << std::endl; //Å¸ÀÓ½ºÅÆÇÁ
+	//std::cout << RecvEventData->timestamp() << std::endl; //Å¸ÀÓ½ºÅÆÇÁ
 
 	flatbuffers::FlatBufferBuilder SendBuilder;
 
@@ -133,10 +146,10 @@ int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 	break;
 	case UserEvents::EventType_C2S_PlayerMoveData:
 	{
-		std::cout << "EventType_C2S_PlayerMoveData" << std::endl;
+//		std::cout << "EventType_C2S_PlayerMoveData" << std::endl;
 		auto PlayerMoveData = RecvEventData->data_as_C2S_PlayerMoveData();
-		int PlayerX = PlayerMoveData->position_x();
-		int PlayerY = PlayerMoveData->position_y();
+		int PlayerX = SessionList[PlayerMoveData->player_id()].X;
+		int PlayerY = SessionList[PlayerMoveData->player_id()].Y;
 		if (PlayerMoveData->key_code() != 0)
 		{
 			switch (toupper(PlayerMoveData->key_code()))
@@ -173,14 +186,22 @@ int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 
 			PlayerX = std::clamp(PlayerX, 0, 100);
 			PlayerY = std::clamp(PlayerY, 0, 100);
+
+			SessionList[PlayerMoveData->player_id()].X = PlayerX;
+			SessionList[PlayerMoveData->player_id()].Y = PlayerY;
 		}
 
 		GotoXY(PlayerX, PlayerY);
-		std::cout << "P" << std::endl;
+		std::cout << PlayerMoveData->player_id() << std::endl;
 
 		auto SendPlayerMoveData = UserEvents::CreateS2C_PlayerMoveData(SendBuilder, (uint32_t)ClientSocket, PlayerX, PlayerY);
 		auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_S2C_PlayerMoveData, SendPlayerMoveData.Union());
 		SendBuilder.Finish(EventData);
+		for (const auto& Receiver : SessionList)
+		{
+			SendPacket(Receiver.second.PlayerSocket, SendBuilder);
+		}
+
 	}
 	break;
 	case UserEvents::EventType_C2S_Logout:

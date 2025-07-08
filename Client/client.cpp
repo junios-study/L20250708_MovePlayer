@@ -15,6 +15,8 @@ CRITICAL_SECTION SessionCS;
 
 int ProcessPacket(SOCKET ServerSocket, const char* Buffer);
 
+uint32_t PlayerID = 0;
+
 unsigned RecvThread(void* Arg)
 {
 	SOCKET ServerSocket = *(SOCKET*)Arg;
@@ -44,9 +46,14 @@ unsigned SendThread(void* Arg)
 		if (_kbhit())
 		{
 			int KeyCode = _getch();
-			//SendPacket()
-
-			//auto PlayerMoveData = UserEvents::CreateC2S_PlayerMoveData(SendBuilder, PlyerMoveData->position_x(), PlyerMoveData->position_y(), keyCode);
+			flatbuffers::FlatBufferBuilder SendBuilder;
+			auto PlayerMoveData = UserEvents::CreateC2S_PlayerMoveData(SendBuilder, PlayerID,
+				SessionList[PlayerID].X,
+				SessionList[PlayerID].Y,
+				KeyCode);
+			auto EventData = UserEvents::CreateEventData(SendBuilder, GetTimeStamp(), UserEvents::EventType_C2S_PlayerMoveData, PlayerMoveData.Union());
+			SendBuilder.Finish(EventData);
+			SendPacket(ServerSocket, SendBuilder);
 		}
 		else
 		{
@@ -110,7 +117,7 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 	flatbuffers::FlatBufferBuilder SendBuilder;
 	//root_type
 	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
-	std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
+	//std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
 
 	switch (RecvEventData->data_type())
 	{
@@ -121,6 +128,7 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 			{
 				std::cout << "로그인 성공: " << LoginData->success() << std::endl;
 				std::cout << "유저 ID: " << LoginData->player_id() << std::endl;
+				PlayerID = LoginData->player_id();
 			}
 			else
 			{
@@ -130,12 +138,13 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 		break;
 		case UserEvents::EventType_S2C_PlayerMoveData:
 		{
-			std::cout << "EventType_S2C_PlayerMoveData" << std::endl;
 			auto PlyerMoveData = RecvEventData->data_as_S2C_PlayerMoveData();
 			if (PlyerMoveData)
 			{
-				GotoXY(PlyerMoveData->position_x(), PlyerMoveData->position_y());
-				std::cout << "P" << std::endl;
+				EnterCriticalSection(&SessionCS);
+				SessionList[PlyerMoveData->player_id()].X = PlyerMoveData->position_x();
+				SessionList[PlyerMoveData->player_id()].Y = PlyerMoveData->position_y();
+				LeaveCriticalSection(&SessionCS);
 			}
 			else
 			{
@@ -155,6 +164,14 @@ int ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
 			SessionList[LoginData->player_id()] = Session(LoginData->player_id(),
 				LoginData->position_x(), LoginData->position_y(),
 				LoginData->message()->c_str(), *LoginData->color());
+			LeaveCriticalSection(&SessionCS);
+		}
+		break;
+		case UserEvents::EventType_S2C_DestroyPlayer:
+		{
+			auto DestroyPlayerData = RecvEventData->data_as_S2C_DestroyPlayer();
+			EnterCriticalSection(&SessionCS);
+			SessionList.erase(DestroyPlayerData->player_id());
 			LeaveCriticalSection(&SessionCS);
 		}
 		break;
